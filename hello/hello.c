@@ -14,7 +14,7 @@ ElfW(auxv_t)* getAUXV(char** endArgv)
 
 ElfW(Phdr)* getAuxvEntry(ElfW(auxv_t)* auxv, unsigned type)
 {
-    while (auxv->a_type != type)
+    while (auxv->a_type != AT_NULL && auxv->a_type != type)
         auxv++;
     return (void*)auxv->a_un.a_val;
 }
@@ -32,27 +32,21 @@ void* getAbsPtr(char* basePtr, ElfW(Addr) offset)
 ElfW(Phdr)* searchPhdrSegment(ElfW(Phdr)* phdr,
                               ElfW(Word) type)
 {
-    while (phdr->p_type != type)
+    while (phdr->p_type != PT_NULL && phdr->p_type != type)
         phdr++;
     return phdr;
 }
 
-void* getDynSecEntryPtr(ElfW(Dyn)* dyn, ElfW(Sxword) type)
+void* searchFirstDynEntry(ElfW(Dyn)* dyn,
+                          ElfW(Sxword) type,
+                          struct link_map* linkMap)
 {
     while (dyn->d_tag != type)
         dyn++;
-    return (void*)dyn->d_un.d_ptr;
-}
-
-void* getDynSecEntryPtr2(ElfW(Dyn)* dyn,
-                         ElfW(Sxword) type,
-                         struct link_map* linkMap)
-{
-    while (dyn->d_tag != type)
-        dyn++;
-    if ((void*)dyn->d_un.d_ptr < (void*)linkMap->l_addr)
-        return (char*)dyn->d_un.d_ptr + linkMap->l_addr;
-    return (void*)dyn->d_un.d_ptr;
+    void* res = (void*)dyn->d_un.d_ptr;
+    if (linkMap && res < (void*)linkMap->l_addr)
+        return res + linkMap->l_addr;
+    return res;
 }
 
 int mystrcmp(char* str1, char* str2)
@@ -62,7 +56,7 @@ int mystrcmp(char* str1, char* str2)
         str1++;
         str2++;
     }
-    return *str1 == *str2;
+    return !*str1 && !*str2 && *str1 == *str2;
 }
 
 void* searchTab(ElfW(Dyn)* dyn,
@@ -70,8 +64,8 @@ void* searchTab(ElfW(Dyn)* dyn,
                void* base,
                struct link_map* linkMap)
 {
-    char* strtab = getDynSecEntryPtr(dyn, DT_STRTAB);
-    ElfW(Sym)* symtab = getDynSecEntryPtr2(dyn, DT_SYMTAB, linkMap);
+    char* strtab = searchFirstDynEntry(dyn, DT_STRTAB, NULL);
+    ElfW(Sym)* symtab = searchFirstDynEntry(dyn, DT_SYMTAB, linkMap);
     while ((void*)symtab < (void*)strtab)
     {
         if (mystrcmp(symbol, strtab + symtab->st_name) && symtab->st_shndx)
@@ -102,12 +96,12 @@ int main(int argc, char* argv[])
     ElfW(Phdr)* phdrDyn = searchPhdrSegment(phdr, PT_DYNAMIC);
 
     ElfW(Dyn)* dyn = (ElfW(Dyn)*)((char*)basePtr + phdrDyn->p_vaddr);
-    struct r_debug* map = getDynSecEntryPtr(dyn, DT_DEBUG);
+    struct r_debug* map = searchFirstDynEntry(dyn, DT_DEBUG, NULL);
     void* ret = iterMap(map, "printf", basePtr);
     if (ret)
     {
         void (*func)() = ret;
-        func("Hello World\n");
+        func("Hello World !\n");
     }
 
     return 0;
