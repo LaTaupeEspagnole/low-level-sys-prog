@@ -14,8 +14,12 @@ ElfW(auxv_t)* getAUXV(char** endArgv)
 
 ElfW(Phdr)* getAuxvEntry(ElfW(auxv_t)* auxv, unsigned type)
 {
-    while (auxv->a_type != AT_NULL && auxv->a_type != type)
+    unsigned count = 0;
+    while (count < PT_NUM && auxv->a_type != type)
+    {
         auxv++;
+        count++;
+    }
     return (void*)auxv->a_un.a_val;
 }
 
