@@ -11,14 +11,14 @@ ElfW(auxv_t)* getAUXV(char** envp)
 
 ElfW(Phdr)* searchAuxvEntry(ElfW(auxv_t)* auxv, unsigned type)
 {
-    for (int c = 0; c < PT_NUM && auxv->a_type != type; c++)
-        auxv++;
+    for (; auxv->a_type != type; auxv++)
+        continue;
     return (void*)auxv->a_un.a_val;
 }
 
-ElfW(Phdr)* searchPhdrSegment(ElfW(Phdr)* phdr, ElfW(Word) type)
+ElfW(Phdr)* searchPhdrSegment(ElfW(Phdr)* phdr, ElfW(Word) type, unsigned size)
 {
-    for (; phdr->p_type != PT_NULL && phdr->p_type != type; phdr++)
+    for (unsigned c = 0; c < size && phdr->p_type != type; phdr++, c++)
         continue;
     return phdr;
 }
@@ -75,9 +75,10 @@ int main(int argc, char* argv[], char* envp[])
 {
     ElfW(auxv_t)* auxv = getAUXV(envp);
     ElfW(Phdr)* phdr = searchAuxvEntry(auxv, AT_PHDR);
+    unsigned phNum = (size_t)searchAuxvEntry(auxv, AT_PHNUM);
     void* basePtr = (char*)phdr - phdr->p_vaddr; // Calculate the base pointer
 
-    ElfW(Phdr)* phdrDyn = searchPhdrSegment(phdr, PT_DYNAMIC);
+    ElfW(Phdr)* phdrDyn = searchPhdrSegment(phdr, PT_DYNAMIC, phNum);
 
     // Get the Dyn of the segment
     ElfW(Dyn)* dyn = (ElfW(Dyn)*)((char*)basePtr + phdrDyn->p_vaddr);
