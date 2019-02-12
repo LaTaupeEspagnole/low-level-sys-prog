@@ -1,0 +1,6 @@
+dir /dev 0755 0 0
+dir /bin 0755 0 0
+dir /proc 0755 0 0
+file /bin/busybox /usr/bin/busybox 0755 0 0
+slink /bin/sh /bin/busybox 0777 0 0
+file /init init.sh 0755 0 0
